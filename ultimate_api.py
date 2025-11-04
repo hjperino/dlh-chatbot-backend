@@ -357,7 +357,8 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
                 days_until = (event['date'].date() - current_date.date()).days
                 context_parts.append(f"\n📅 DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (in {days_until} Tagen)")
                 context_parts.append(f"Quelle: {event['chunk']['metadata'].get('source', 'Unbekannt')}")
-                context_parts.append(event['chunk']['content'])
+                # WICHTIG: Nur den Kontext um dieses spezifische Datum, nicht den ganzen Chunk!
+                context_parts.append(event['context'])
                 context_parts.append("---")
         
         # Vergangene Events
@@ -367,7 +368,8 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
                 days_ago = (current_date.date() - event['date'].date()).days
                 context_parts.append(f"\n📅 DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (vor {days_ago} Tagen - BEREITS VORBEI)")
                 context_parts.append(f"Quelle: {event['chunk']['metadata'].get('source', 'Unbekannt')}")
-                context_parts.append(event['chunk']['content'])
+                # WICHTIG: Nur den Kontext um dieses spezifische Datum
+                context_parts.append(event['context'])
                 context_parts.append("---")
         
         # Events ohne erkennbares Datum
@@ -520,11 +522,21 @@ async def ask_question(request: QuestionRequest):
         # Analysiere Intent
         intent = extract_query_intent(request.question)
         
+        # DEBUG: Log the intent
+        print(f"🔍 Intent erkannt: {intent}")
+        
         # Führe erweiterte Suche durch
         relevant_chunks = advanced_search(
             request.question, 
             max_results=request.max_sources + 3
         )
+        
+        # DEBUG: Log found chunks
+        print(f"📦 Gefundene Chunks: {len(relevant_chunks)}")
+        for i, chunk in enumerate(relevant_chunks[:3]):
+            print(f"  Chunk {i+1}: {chunk['content'][:100]}...")
+            dates = extract_dates_from_text(chunk['content'])
+            print(f"  → Gefundene Daten: {[d[2] for d in dates[:5]]}")
         
         # Erstelle optimierten Prompt
         prompt = create_enhanced_prompt(request.question, relevant_chunks, intent)

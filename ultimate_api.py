@@ -106,8 +106,8 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     patterns = [
         # DD.MM.YYYY oder DD.MM.YY
         r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})',
-        # DD. Monat YYYY
-        r'(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})',
+        # DD. Monat YYYY (mit oder ohne Punkt nach Monat)
+        r'(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\.?\s*(\d{4})',
     ]
     
     month_map = {
@@ -290,7 +290,11 @@ def advanced_search(query: str, max_results: int = 8) -> List[Dict]:
         
         # Intent-basiertes Scoring
         if intent['is_date_query'] and any(d in content_lower for d in ['2024', '2025', '2026', 'uhr', 'datum', 'termin']):
-            score += 20
+            score += 30  # Erhöht von 20
+        
+        # Extra Bonus für November/Dezember 2025 Events (aktueller Monat)
+        if 'november 2025' in content_lower or 'dezember 2025' in content_lower:
+            score += 25
         
         if intent['wants_contact'] and any(c in content_lower for c in ['anmeldung', '@', 'email', 'telefon', 'formular']):
             score += 20

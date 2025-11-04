@@ -1,5 +1,6 @@
 """
-Ultimate API server für DLH Chatbot - Verbesserte Version mit chronologischer Event-Sortierung
+Ultimate API server für DLH Chatbot - Fixed Version with Enhanced Date Extraction
+Fixes: Now detects abbreviated month names (Nov., Dez., etc.) in addition to full names
 """
 
 from fastapi import FastAPI, HTTPException
@@ -21,9 +22,9 @@ load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="DLH Chatbot API (Ultimate Improved)",
-    description="AI-powered chatbot für dlh.zh.ch mit verbesserter Event-Sortierung",
-    version="3.1.0"
+    title="DLH Chatbot API (Ultimate Fixed)",
+    description="AI-powered chatbot für dlh.zh.ch mit verbesserter Event-Sortierung und Datumserkennung",
+    version="3.2.0"
 )
 
 # Configure CORS
@@ -42,7 +43,7 @@ anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 def load_and_preprocess_data():
     """Lade und bereite Daten mit verbesserter Struktur vor"""
     try:
-        with open('processed/processed_chunks.json', 'r', encoding='utf-8') as f:
+        with open('data/processed/processed_chunks.json', 'r', encoding='utf-8') as f:
             chunks = json.load(f)
         
         # Erstelle Index für schnellere Suche
@@ -62,8 +63,7 @@ def load_and_preprocess_data():
                 'fobizz', 'genki', 'innovationsfonds', 'cop', 'cops',
                 'vernetzung', 'workshop', 'weiterbildung', 'kuratiert',
                 'impuls', 'termin', 'anmeldung', 'lunch', 'learn',
-                'impuls-workshop', 'impulsworkshop', 'veranstaltung', 'event',
-                'one change', 'mintwoch', 'call', 'reihe', 'inputorientiert'  # inputorientiert = Impuls-Workshop Kategorie!
+                'impuls-workshop', 'impulsworkshop', 'veranstaltung', 'event'
             ]
             
             for term in important_terms:
@@ -97,27 +97,39 @@ class AnswerResponse(BaseModel):
 
 def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     """
-    Extrahiere Daten aus Text und gib sie mit dem ursprünglichen Text zurück
-    Unterstützt Formate: DD.MM.YYYY, DD.MM.YY, DD. Monat YYYY
+    ENHANCED: Extrahiere Daten aus Text - unterstützt jetzt auch abgekürzte Monatsnamen!
+    Unterstützt Formate: 
+    - DD.MM.YYYY oder DD.MM.YY
+    - DD. Monat YYYY (z.B. "25. November 2025")
+    - DD Mon. YYYY (z.B. "25 Nov. 2025") <- NEU!
     """
     dates_found = []
     
-    # Regex-Muster für verschiedene Datumsformate
-    patterns = [
-        # DD.MM.YYYY oder DD.MM.YY
-        r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})',
-        # DD. Monat YYYY (mit oder ohne Punkt nach Monat)
-        r'(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\.?\s*(\d{4})',
-    ]
-    
-    month_map = {
+    # Erweiterte Monatsnamen-Maps
+    month_map_full = {
         'januar': 1, 'februar': 2, 'märz': 3, 'april': 4,
         'mai': 5, 'juni': 6, 'juli': 7, 'august': 8,
         'september': 9, 'oktober': 10, 'november': 11, 'dezember': 12
     }
     
-    # Suche nach DD.MM.YYYY Format
-    for match in re.finditer(patterns[0], text):
+    month_map_abbr = {
+        'jan': 1, 'feb': 2, 'mär': 3, 'märz': 3, 'mrz': 3, 'apr': 4,
+        'mai': 5, 'jun': 6, 'jul': 7, 'aug': 8,
+        'sep': 9, 'sept': 9, 'okt': 10, 'nov': 11, 'dez': 12
+    }
+    
+    # Regex-Muster für verschiedene Datumsformate
+    patterns = [
+        # DD.MM.YYYY oder DD.MM.YY
+        (r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', 'numeric'),
+        # DD. Monat YYYY (volle Monatsnamen)
+        (r'(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})', 'full_month'),
+        # DD Mon. YYYY or DD. Mon. YYYY (abgekürzte Monatsnamen mit optionalem Punkt)
+        (r'(\d{1,2})\.?\s+(Jan\.?|Feb\.?|Mär\.?|März\.?|Mrz\.?|Apr\.?|Mai\.?|Jun\.?|Jul\.?|Aug\.?|Sep\.?|Sept\.?|Okt\.?|Nov\.?|Dez\.?)\s+(\d{4})', 'abbr_month'),
+    ]
+    
+    # Muster 1: DD.MM.YYYY Format
+    for match in re.finditer(patterns[0][0], text):
         try:
             day = int(match.group(1))
             month = int(match.group(2))
@@ -125,7 +137,6 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
             year = int(year_str) if len(year_str) == 4 else (2000 + int(year_str))
             
             date_obj = datetime(year, month, day)
-            # Extrahiere Kontext um das Datum (ca. 100 Zeichen vor und nach)
             start = max(0, match.start() - 100)
             end = min(len(text), match.end() + 100)
             context = text[start:end].strip()
@@ -134,12 +145,30 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
         except ValueError:
             continue
     
-    # Suche nach DD. Monat YYYY Format
-    for match in re.finditer(patterns[1], text, re.IGNORECASE):
+    # Muster 2: DD. Monat YYYY Format (volle Namen)
+    for match in re.finditer(patterns[1][0], text, re.IGNORECASE):
         try:
             day = int(match.group(1))
             month_name = match.group(2).lower()
-            month = month_map.get(month_name)
+            month = month_map_full.get(month_name)
+            year = int(match.group(3))
+            
+            if month:
+                date_obj = datetime(year, month, day)
+                start = max(0, match.start() - 100)
+                end = min(len(text), match.end() + 100)
+                context = text[start:end].strip()
+                
+                dates_found.append((date_obj, context, match.group(0)))
+        except ValueError:
+            continue
+    
+    # Muster 3: DD Mon. YYYY Format (abgekürzte Namen) <- NEU!
+    for match in re.finditer(patterns[2][0], text, re.IGNORECASE):
+        try:
+            day = int(match.group(1))
+            month_abbr = match.group(2).lower().replace('.', '').strip()
+            month = month_map_abbr.get(month_abbr)
             year = int(match.group(3))
             
             if month:
@@ -157,7 +186,6 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
 def sort_events_chronologically(chunks: List[Dict], current_date: datetime = None) -> Dict[str, List[Dict]]:
     """
     Sortiere Events chronologisch und trenne vergangene von zukünftigen Events
-    WICHTIG: Wenn ein Chunk mehrere Daten enthält, erstelle für jedes Datum ein separates Event
     
     Returns:
         Dict mit 'future_events', 'past_events' und 'no_date_events'
@@ -177,23 +205,21 @@ def sort_events_chronologically(chunks: List[Dict], current_date: datetime = Non
             # Sortiere Daten innerhalb des Chunks
             dates.sort(key=lambda x: x[0])
             
-            # WICHTIG: Erstelle für JEDES Datum ein separates Event
-            for date_tuple in dates:
-                date_obj = date_tuple[0]
-                context_text = date_tuple[1]
-                date_str = date_tuple[2]
-                
-                event_info = {
-                    'chunk': chunk,
-                    'date': date_obj,
-                    'date_str': date_str,
-                    'context': context_text
-                }
-                
-                if date_obj.date() < current_date.date():
-                    past_events.append(event_info)
-                else:
-                    future_events.append(event_info)
+            # Nimm das früheste Datum als Referenz für diesen Chunk
+            earliest_date = dates[0][0]
+            
+            event_info = {
+                'chunk': chunk,
+                'date': earliest_date,
+                'date_str': dates[0][2],
+                'all_dates': dates,
+                'context': dates[0][1]
+            }
+            
+            if earliest_date.date() < current_date.date():
+                past_events.append(event_info)
+            else:
+                future_events.append(event_info)
         else:
             no_date_events.append({'chunk': chunk})
     
@@ -214,13 +240,12 @@ def extract_query_intent(query: str) -> Dict[str, any]:
     query_lower = query.lower()
     
     intent = {
-        'is_date_query': any(term in query_lower for term in ['heute', 'morgen', 'termin', 'wann', 'datum', 'zeit', 'event', 'veranstaltung']),
+        'is_date_query': any(term in query_lower for term in ['heute', 'morgen', 'termin', 'wann', 'datum', 'zeit', 'event', 'veranstaltung', 'nächste', 'kommende']),
         'is_how_to': any(term in query_lower for term in ['wie', 'anleitung', 'tutorial', 'schritte']),
         'is_definition': any(term in query_lower for term in ['was ist', 'was sind', 'definition', 'bedeutung']),
         'wants_list': any(term in query_lower for term in ['welche', 'liste', 'alle', 'überblick', 'übersicht']),
         'wants_contact': any(term in query_lower for term in ['kontakt', 'anmeldung', 'email', 'telefon', 'anmelden']),
-        'topic_keywords': [],
-        'is_impulsworkshop_query': 'impulsworkshop' in query_lower or 'impuls-workshop' in query_lower  # Spezielle Flag für Impulsworkshop-Anfragen
+        'topic_keywords': []
     }
     
     # Erweiterte Themenerkennung
@@ -228,7 +253,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'fobizz': ['fobizz', 'to teach', 'to-teach'],
         'genki': ['genki', 'gen ki', 'gen-ki'],
         'innovationsfonds': ['innovationsfonds', 'innovation', 'projekt'],
-        'workshop': ['workshop', 'impuls', 'veranstaltung', 'impuls-workshop', 'impulsworkshop', 'event', 'one change', 'mintwoch', 'call', 'reihe', 'inputorientiert'],
+        'workshop': ['workshop', 'impuls', 'veranstaltung', 'impuls-workshop', 'impulsworkshop', 'event'],
         'cop': ['cop', 'cops', 'community', 'practice'],
         'weiterbildung': ['weiterbildung', 'fortbildung', 'kurs', 'schulung'],
         'vernetzung': ['vernetzung', 'netzwerk', 'austausch'],
@@ -292,17 +317,9 @@ def advanced_search(query: str, max_results: int = 8) -> List[Dict]:
         matching_words = query_words & content_words
         score += len(matching_words) * 5
         
-        # Spezial-Bonus für Impulsworkshop-Anfragen
-        if intent.get('is_impulsworkshop_query') and 'inputorientiert' in content_lower:
-            score += 50  # Sehr hoher Bonus für Chunks mit der Impuls-Workshop Kategorie
-        
         # Intent-basiertes Scoring
         if intent['is_date_query'] and any(d in content_lower for d in ['2024', '2025', '2026', 'uhr', 'datum', 'termin']):
-            score += 30  # Erhöht von 20
-        
-        # Extra Bonus für November/Dezember 2025 Events (aktueller Monat)
-        if 'november 2025' in content_lower or 'dezember 2025' in content_lower:
-            score += 25
+            score += 20
         
         if intent['wants_contact'] and any(c in content_lower for c in ['anmeldung', '@', 'email', 'telefon', 'formular']):
             score += 20
@@ -357,8 +374,7 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
                 days_until = (event['date'].date() - current_date.date()).days
                 context_parts.append(f"\n📅 DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (in {days_until} Tagen)")
                 context_parts.append(f"Quelle: {event['chunk']['metadata'].get('source', 'Unbekannt')}")
-                # WICHTIG: Nur den Kontext um dieses spezifische Datum, nicht den ganzen Chunk!
-                context_parts.append(event['context'])
+                context_parts.append(event['chunk']['content'])
                 context_parts.append("---")
         
         # Vergangene Events
@@ -368,8 +384,7 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
                 days_ago = (current_date.date() - event['date'].date()).days
                 context_parts.append(f"\n📅 DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (vor {days_ago} Tagen - BEREITS VORBEI)")
                 context_parts.append(f"Quelle: {event['chunk']['metadata'].get('source', 'Unbekannt')}")
-                # WICHTIG: Nur den Kontext um dieses spezifische Datum
-                context_parts.append(event['context'])
+                context_parts.append(event['chunk']['content'])
                 context_parts.append("---")
         
         # Events ohne erkennbares Datum
@@ -497,11 +512,11 @@ Erstelle eine hilfreiche, gut strukturierte und vollständige Antwort mit perfek
 @app.get("/")
 async def root():
     return {
-        "message": "DLH Chatbot API (Ultimate Improved)",
+        "message": "DLH Chatbot API (Ultimate Fixed)",
         "status": "running",
         "chunks_loaded": len(CHUNKS),
         "indexed_keywords": len(KEYWORD_INDEX),
-        "version": "3.1.0"
+        "version": "3.2.0 - Enhanced date extraction"
     }
 
 @app.get("/health")
@@ -510,33 +525,22 @@ async def health_check():
         "status": "healthy",
         "chunks_loaded": len(CHUNKS),
         "api_key_configured": bool(os.getenv("ANTHROPIC_API_KEY")),
-        "indexed_keywords": len(KEYWORD_INDEX)
+        "indexed_keywords": len(KEYWORD_INDEX),
+        "date_extraction": "Enhanced - supports abbreviated month names"
     }
 
 @app.post("/ask", response_model=AnswerResponse)
 async def ask_question(request: QuestionRequest):
     """Beantworte Fragen mit optimaler Kontext-Verarbeitung und Event-Sortierung"""
-    relevant_chunks = []  # Initialize to avoid UnboundLocalError
-    
     try:
         # Analysiere Intent
         intent = extract_query_intent(request.question)
-        
-        # DEBUG: Log the intent
-        print(f"🔍 Intent erkannt: {intent}")
         
         # Führe erweiterte Suche durch
         relevant_chunks = advanced_search(
             request.question, 
             max_results=request.max_sources + 3
         )
-        
-        # DEBUG: Log found chunks
-        print(f"📦 Gefundene Chunks: {len(relevant_chunks)}")
-        for i, chunk in enumerate(relevant_chunks[:3]):
-            print(f"  Chunk {i+1}: {chunk['content'][:100]}...")
-            dates = extract_dates_from_text(chunk['content'])
-            print(f"  → Gefundene Daten: {[d[2] for d in dates[:5]]}")
         
         # Erstelle optimierten Prompt
         prompt = create_enhanced_prompt(request.question, relevant_chunks, intent)
@@ -607,13 +611,16 @@ async def ask_question(request: QuestionRequest):
         else:
             raise HTTPException(status_code=500, detail=str(e))
 
+# Serve static files
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 if __name__ == "__main__":
-    print("\n🚀 Starting Ultimate DLH Chatbot API server (IMPROVED VERSION)...")
+    print("\n🚀 Starting Ultimate DLH Chatbot API server (FIXED VERSION)...")
     print("📝 API documentation: http://localhost:8000/docs")
-    print("🌐 Frontend hosted at: https://perino.info/dlh-chatbot")
+    print("🌐 Chat interface: http://localhost:8000/static/index.html")
     print(f"📚 Loaded {len(CHUNKS)} chunks")
     print(f"🔍 Indexed {len(KEYWORD_INDEX)} keywords")
+    print("✨ NEW: Enhanced date extraction (supports abbreviated months!)") 
     print("✨ NEW: Chronological event sorting with past/future separation!")
     print("\n✅ All features enabled!\n")
     

@@ -62,7 +62,8 @@ def load_and_preprocess_data():
                 'fobizz', 'genki', 'innovationsfonds', 'cop', 'cops',
                 'vernetzung', 'workshop', 'weiterbildung', 'kuratiert',
                 'impuls', 'termin', 'anmeldung', 'lunch', 'learn',
-                'impuls-workshop', 'impulsworkshop', 'veranstaltung', 'event'
+                'impuls-workshop', 'impulsworkshop', 'veranstaltung', 'event',
+                'one change', 'mintwoch', 'call', 'reihe'  # Erweiterte Workshop-Begriffe
             ]
             
             for term in important_terms:
@@ -223,7 +224,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'fobizz': ['fobizz', 'to teach', 'to-teach'],
         'genki': ['genki', 'gen ki', 'gen-ki'],
         'innovationsfonds': ['innovationsfonds', 'innovation', 'projekt'],
-        'workshop': ['workshop', 'impuls', 'veranstaltung', 'impuls-workshop', 'impulsworkshop', 'event'],
+        'workshop': ['workshop', 'impuls', 'veranstaltung', 'impuls-workshop', 'impulsworkshop', 'event', 'one change', 'mintwoch', 'call', 'reihe'],
         'cop': ['cop', 'cops', 'community', 'practice'],
         'weiterbildung': ['weiterbildung', 'fortbildung', 'kurs', 'schulung'],
         'vernetzung': ['vernetzung', 'netzwerk', 'austausch'],

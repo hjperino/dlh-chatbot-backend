@@ -157,6 +157,7 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
 def sort_events_chronologically(chunks: List[Dict], current_date: datetime = None) -> Dict[str, List[Dict]]:
     """
     Sortiere Events chronologisch und trenne vergangene von zukünftigen Events
+    WICHTIG: Wenn ein Chunk mehrere Daten enthält, erstelle für jedes Datum ein separates Event
     
     Returns:
         Dict mit 'future_events', 'past_events' und 'no_date_events'
@@ -176,21 +177,23 @@ def sort_events_chronologically(chunks: List[Dict], current_date: datetime = Non
             # Sortiere Daten innerhalb des Chunks
             dates.sort(key=lambda x: x[0])
             
-            # Nimm das früheste Datum als Referenz für diesen Chunk
-            earliest_date = dates[0][0]
-            
-            event_info = {
-                'chunk': chunk,
-                'date': earliest_date,
-                'date_str': dates[0][2],
-                'all_dates': dates,
-                'context': dates[0][1]
-            }
-            
-            if earliest_date.date() < current_date.date():
-                past_events.append(event_info)
-            else:
-                future_events.append(event_info)
+            # WICHTIG: Erstelle für JEDES Datum ein separates Event
+            for date_tuple in dates:
+                date_obj = date_tuple[0]
+                context_text = date_tuple[1]
+                date_str = date_tuple[2]
+                
+                event_info = {
+                    'chunk': chunk,
+                    'date': date_obj,
+                    'date_str': date_str,
+                    'context': context_text
+                }
+                
+                if date_obj.date() < current_date.date():
+                    past_events.append(event_info)
+                else:
+                    future_events.append(event_info)
         else:
             no_date_events.append({'chunk': chunk})
     

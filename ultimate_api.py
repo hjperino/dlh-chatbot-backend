@@ -5,7 +5,6 @@ Fixes: Now detects abbreviated month names (Nov., Dez., etc.) in addition to ful
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Tuple
 import json
@@ -278,10 +277,26 @@ def advanced_search(query: str, max_results: int = 8) -> List[Dict]:
     if 'impuls' in query_lower and 'workshop' in query_lower:
         intent['topic_keywords'].append('impulsworkshop')
     
+    # NEUE PRIORITÄT: Bei Event/Workshop-Anfragen die Übersichtsseiten ZUERST!
+    overview_urls = [
+        'https://dlh.zh.ch/',
+        'https://dlh.zh.ch',
+        'https://dlh.zh.ch/home/impuls-workshops',
+        'https://dlh.zh.ch/home/aktuelle-termine'
+    ]
+    
+    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+        # Priorisiere Übersichtsseiten mit Score 150 (höher als normale URL-Treffer)
+        for overview_url in overview_urls:
+            if overview_url in URL_INDEX:
+                for idx in URL_INDEX[overview_url][:2]:  # Top 2 von jeder Übersichts-URL
+                    if idx < len(CHUNKS):
+                        results.append((150, CHUNKS[idx]))
+    
     # 1. Direkte URL-Treffer haben höchste Priorität
     for topic in intent['topic_keywords']:
         for url, indices in URL_INDEX.items():
-            if topic in url:
+            if topic in url and url not in overview_urls:  # Übersichtsseiten schon behandelt
                 for idx in indices[:3]:  # Top 3 von jeder passenden URL
                     if idx < len(CHUNKS):
                         results.append((100, CHUNKS[idx]))
@@ -610,8 +625,6 @@ async def ask_question(request: QuestionRequest):
             )
         else:
             raise HTTPException(status_code=500, detail=str(e))
-
-
 
 if __name__ == "__main__":
     print("\n🚀 Starting Ultimate DLH Chatbot API server (FIXED VERSION)...")

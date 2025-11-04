@@ -215,7 +215,7 @@ def sort_events_chronologically(chunks: List[Dict], current_date: datetime = Non
                 'context': dates[0][1]
             }
             
-            if earliest_date.date() < current_date.date():
+            if earliest_date.date() <= current_date.date():
                 past_events.append(event_info)
             else:
                 future_events.append(event_info)

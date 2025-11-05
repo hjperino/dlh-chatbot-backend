@@ -615,11 +615,6 @@ Interdisziplinäres Geschichtsprojekt mit digitalen Werkzeugen<br><br>"""
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-try:
-    app.mount("/static", StaticFiles(directory="frontend"), name="static")
-except Exception as e:
-    print(f"Warning: Could not mount static files: {e}")
-
 if __name__ == "__main__":
     print("\n🚀 Starting DLH Chatbot API (BEST OF BOTH WORLDS)...")
     print(f"📚 Loaded {len(CHUNKS)} chunks")

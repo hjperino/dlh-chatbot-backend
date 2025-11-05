@@ -10,7 +10,6 @@ Combines:
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Tuple
 import json
@@ -614,11 +613,6 @@ InterdisziplinÃ¤res Geschichtsprojekt mit digitalen Werkzeugen<br><br>"""
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
-try:
-    app.mount("/static", StaticFiles(directory="frontend"), name="static")
-except Exception as e:
-    print(f"Warning: Could not mount static files: {e}")
 
 if __name__ == "__main__":
     print("\nðŸš€ Starting DLH Chatbot API (BEST OF BOTH WORLDS)...")

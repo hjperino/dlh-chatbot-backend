@@ -322,7 +322,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     ]
     
     # PRIORITÃ„T 1: Bei Event/Workshop-Anfragen die Ãœbersichtsseiten ZUERST! (Score 150)
-    if any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
         print(f"ðŸ” Prioritizing overview pages for workshop/event query")
         for overview_url in overview_urls:
             if overview_url in URL_INDEX:

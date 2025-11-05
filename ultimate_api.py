@@ -244,6 +244,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'is_definition': any(term in query_lower for term in ['was ist', 'was sind', 'definition', 'bedeutung']),
         'wants_list': any(term in query_lower for term in ['welche', 'liste', 'alle', 'überblick', 'übersicht']),
         'wants_contact': any(term in query_lower for term in ['kontakt', 'anmeldung', 'email', 'telefon', 'anmelden']),
+        'is_project_query': any(term in query_lower for term in ['projekt', 'projekte', 'innovationsfonds']),
         'topic_keywords': []
     }
     
@@ -282,7 +283,8 @@ def advanced_search(query: str, max_results: int = 8) -> List[Dict]:
         'https://dlh.zh.ch/',
         'https://dlh.zh.ch',
         'https://dlh.zh.ch/home/impuls-workshops',
-        'https://dlh.zh.ch/home/aktuelle-termine'
+        'https://dlh.zh.ch/home/aktuelle-termine',
+        'https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht'  # NEU für Projekte!
     ]
     
     if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
@@ -292,6 +294,14 @@ def advanced_search(query: str, max_results: int = 8) -> List[Dict]:
                 for idx in URL_INDEX[overview_url][:2]:  # Top 2 von jeder Übersichts-URL
                     if idx < len(CHUNKS):
                         results.append((150, CHUNKS[idx]))
+    
+    # NEUE PRIORITÄT: Bei Projekt-Anfragen die Übersichtsseite ZUERST!
+    if intent['is_project_query'] and any(kw in ['innovationsfonds'] for kw in intent['topic_keywords']):
+        project_overview_url = 'https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht'
+        if project_overview_url in URL_INDEX:
+            for idx in URL_INDEX[project_overview_url]:  # ALLE Chunks von der Übersichtsseite
+                if idx < len(CHUNKS):
+                    results.append((150, CHUNKS[idx]))
     
     # 1. Direkte URL-Treffer haben höchste Priorität
     for topic in intent['topic_keywords']:
@@ -473,6 +483,21 @@ KONTAKT UND ANMELDUNG:
 - Telefonnummern: <strong>Tel: +41 XX XXX XX XX</strong>
 """
     
+    if intent['is_project_query']:
+        intent_instructions += """
+INNOVATIONSFONDS-PROJEKTE:
+- Liste ALLE gefundenen Projekte auf
+- Strukturiere nach Fachbereichen wenn in der Frage erwähnt (z.B. Mathematik, Sprachen, etc.)
+- Für jedes Projekt zeige:
+  <br>• <strong>Projekttitel</strong>
+  <br>&nbsp;&nbsp;→ Kurzbeschreibung (1-2 Sätze)
+  <br>&nbsp;&nbsp;→ Fachbereich: [Fach/Fächer]
+  <br>&nbsp;&nbsp;→ Mehr Info: <a href="URL" target="_blank">Projektdetails</a>
+- Wenn nach spezifischen Kriterien gefragt (z.B. "Mathematik-Projekte"), filtere entsprechend
+- Bei "alle Projekte" oder "Übersicht": Zeige ALLE gefundenen Projekte
+- Gruppiere nach logischen Kategorien (z.B. Fach, Tool, Methodik) wenn sinnvoll
+"""
+    
     prompt = f"""Du bist der offizielle KI-Assistent des Digital Learning Hub (DLH) Zürich.
 Beantworte die folgende Frage präzise und vollständig basierend auf den bereitgestellten Informationen.
 
@@ -512,6 +537,19 @@ Beispiel für perfekte Event-Formatierung:
 <strong>⚠️ Bereits vergangene Veranstaltungen:</strong><br>
 • <strong>15.10.2025</strong> - Workshop Fobizz <em>(bereits vorbei)</em><br>
 • <strong>22.09.2025</strong> - Kick-off Meeting <em>(bereits vorbei)</em>
+
+Beispiel für perfekte Projekt-Formatierung:
+<strong>Innovationsfonds-Projekte im Bereich Mathematik</strong><br><br>
+
+• <strong>Badgesystem-Funktionen</strong><br>
+&nbsp;&nbsp;→ Funktionen als zentrale Elemente der mathematischen Grundbildung mit interaktivem Badgesystem<br>
+&nbsp;&nbsp;→ Fach: Mathematik<br>
+&nbsp;&nbsp;→ <a href="https://dlh.zh.ch/projekt-url" target="_blank">Projektdetails</a><br>
+<br>
+• <strong>Vektorgeometrie mit 3D-Visualisierung</strong><br>
+&nbsp;&nbsp;→ Interaktive 3D-Modelle zur Visualisierung vektorieller Zusammenhänge<br>
+&nbsp;&nbsp;→ Fach: Mathematik, Physik<br>
+&nbsp;&nbsp;→ <a href="https://dlh.zh.ch/projekt-url" target="_blank">Projektdetails</a>
 
 {intent_instructions}
 

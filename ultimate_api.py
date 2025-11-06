@@ -18,6 +18,119 @@ import re
 import uvicorn
 import logging
 import requests
+
+# === Added: robust German date parsing and workshop scraping ===
+from datetime import datetime, timedelta, timezone
+import urllib.parse
+import re as _re
+
+DE_MONTHS = {
+    'januar': 1, 'jan': 1,
+    'februar': 2, 'feb': 2,
+    'maerz': 3, 'märz': 3, 'mrz': 3, 'maer': 3, 'mar': 3,
+    'april': 4, 'apr': 4,
+    'mai': 5,
+    'juni': 6, 'jun': 6,
+    'juli': 7, 'jul': 7,
+    'august': 8, 'aug': 8,
+    'september': 9, 'sep': 9, 'sept': 9,
+    'oktober': 10, 'okt': 10,
+    'november': 11, 'nov': 11,
+    'dezember': 12, 'dez': 12
+}
+
+def _normalize_dash(s: str) -> str:
+    return s.replace('\u2013', '-').replace('\u2014', '-').replace('–', '-').replace('—', '-')
+
+def parse_de_date_text(txt: str):
+    if not txt:
+        return None
+    s = _normalize_dash(txt.lower().strip())
+    s = s.replace('uhr', '').replace(',', ' ')
+    m = _re.search(r'(\d{1,2})\s*(?:\.\s*)?(jan|januar|feb|februar|maerz|märz|mrz|mar|april|apr|mai|jun|juni|jul|juli|aug|august|sep|sept|september|okt|oktober|nov|november|dez|dezember)\s*(\d{4})', s)
+    if not m:
+        m = _re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', s)
+        if m:
+            day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        else:
+            return None
+    else:
+        day = int(m.group(1))
+        mon = m.group(2)
+        month = DE_MONTHS.get(mon, None)
+        if not month:
+            return None
+        year = int(m.group(3))
+    tmatch = _re.search(r'(\d{1,2}):(\d{2})', s)
+    hour, minute = (0, 0)
+    if tmatch:
+        hour, minute = int(tmatch.group(1)), int(tmatch.group(2))
+    try:
+        return datetime(year, month, day, hour, minute)
+    except Exception:
+        return None
+
+def dedupe_items(items, key=lambda x: (x.get('title','').lower().strip(), x.get('when',''))):
+    seen = set()
+    out = []
+    for it in items:
+        k = key(it)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(it)
+    return out
+
+def get_upcoming_impuls_workshops_live(max_items: int = 8):
+    url = "https://dlh.zh.ch/home/impuls-workshops"
+    try:
+        resp = requests.get(url, timeout=10, headers={"User-Agent": "DLH-Chatbot/1.0"})
+        resp.raise_for_status()
+    except Exception:
+        return []
+
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(resp.text, "html.parser")
+    candidates = soup.select("li, .event, .teaser, .item, article")
+    events = []
+    now = datetime.now()
+    for el in candidates:
+        a = el.find("a")
+        title = a.get_text(strip=True) if a else el.get_text(" ", strip=True)[:120]
+        href = a.get("href") if a and a.has_attr("href") else url
+        full_url = urllib.parse.urljoin(url, href)
+
+        dt_el = None
+        for css in ["time", ".date", ".datetime", ".termine", ".event-date"]:
+            dt_el = el.select_one(css) if hasattr(el, "select_one") else None
+            if dt_el:
+                break
+        when_text = (dt_el.get_text(" ", strip=True) if dt_el else el.get_text(" ", strip=True))
+        when_text = _normalize_dash(when_text)
+        dt = parse_de_date_text(when_text)
+        if not dt or dt < now:
+            continue
+
+        desc_el = None
+        for css in [".intro", ".desc", "p"]:
+            desc_el = el.select_one(css) if hasattr(el, "select_one") else None
+            if desc_el:
+                break
+        snippet = (desc_el.get_text(" ", strip=True) if desc_el else "")
+
+        if _re.search(r"impuls|workshop|reihe|mintwoch|one change", (title + " " + when_text).lower()):
+            events.append({
+                "title": title,
+                "url": full_url,
+                "when": dt.isoformat(),
+                "when_text": when_text,
+                "snippet": snippet
+            })
+    events = dedupe_items(events)
+    events.sort(key=lambda e: e["when"])
+    return events[:max_items]
+
+
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -456,7 +569,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     ]
     
     # LIVE FETCH: For workshop/event queries, ALWAYS fetch the live page
-    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+    if intent['is_date_query'] or any(k in query_lower for k in ['impuls', 'workshop', 'termine', 'veranstaltung', 'events']):
         print(f"LIVE FETCH: Fetching current Impuls-Workshops page")
         live_chunk = fetch_live_impuls_workshops()
         if live_chunk:
@@ -465,7 +578,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
             print(f"   LIVE DATA: Added with score 200 (highest priority)")
     
     # PRIORITAT 1: Bei Event/Workshop-Anfragen die Abersichtsseiten ZUERST! (Score 150)
-    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+    if intent['is_date_query'] or any(k in query_lower for k in ['impuls', 'workshop', 'termine', 'veranstaltung', 'events']):
         print(f"Y Prioritizing overview pages for workshop/event query")
         for overview_url in overview_urls:
             if overview_url in URL_INDEX:
@@ -757,7 +870,7 @@ async def ask_question(request: QuestionRequest):
         prompt = create_enhanced_prompt(request.question, relevant_chunks, intent)
         
         # System Prompt fuer garantierte Formatierung!
-        system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung.
+        system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung. Liste bei Terminfragen die nächsten 5–10 Einträge als einzelne Zeilen mit Datum, Zeit, Titel (verlinkt).
 
 KRITISCHE REGEL - PROJEKTTITEL MASSEN IMMER KLICKBARE LINKS SEIN:
 Format: <strong><a href="VOLLSTANDIGE-URL" target="_blank">Projekttitel</a></strong><br>

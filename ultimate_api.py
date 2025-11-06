@@ -272,7 +272,7 @@ def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]
         'Elektroberufe': 'elektroberufe',
         'Englisch': 'englisch',
         'FaGe': 'fage',
-        'Franzoesisch': 'franzoesisch',
+        'Franzosisch': 'franzoesisch',
         'Geographie': 'geographie',
         'Geomatiker:innen EFZ': 'geomatiker-innen-efz',
         'Geschichte': 'geschichte',
@@ -379,7 +379,7 @@ def sort_events_chronologically(chunks: List[Dict], current_date: datetime = Non
 def extract_query_intent(query: str) -> Dict[str, any]:
     """Analysiere die Absicht der Frage"""
     query_lower = query.lower()
-    # Umlaute fuer Facherkennung normalisieren
+    # Umlaute fuer Facherkennung normalisieren (nur fuer Matching)
     q_norm = (query_lower.replace('ä','ae').replace('ö','oe').replace('ü','ue'))
     
     innovationsfonds_terms = [
@@ -432,7 +432,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
             intent['topic_keywords'].append(topic)
     
     for subject, keywords in subjects.items():
-        if any(kw in query_lower for kw in keywords):
+        if any(kw in q_norm for kw in keywords):
             intent['subject_keywords'].append(subject)
     
     return intent
@@ -441,11 +441,19 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     """BEST OF BOTH: Metadata search + Overview URL prioritization"""
     intent = extract_query_intent(query)
     query_lower = query.lower()
-    # Umlaute fuer Facherkennung normalisieren
+    # Umlaute fuer Facherkennung normalisieren (nur fuer Matching)
     q_norm = (query_lower.replace('ä','ae').replace('ö','oe').replace('ü','ue'))
     query_words = set(query_lower.split())
     
     results = []
+
+    # Live fetch projects for detected subjects (high priority)
+    if intent['subject_keywords']:
+        for subj in intent['subject_keywords']:
+            live_chunk = fetch_live_innovationsfonds(subject=subj)
+            if live_chunk:
+                results.append((300, live_chunk))
+                print(f"   LIVE DATA: Added {subj} projects with score 300")
     
     if 'impuls' in query_lower and 'workshop' in query_lower:
         intent['topic_keywords'].append('impulsworkshop')
@@ -460,7 +468,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     ]
     
     # LIVE FETCH: For workshop/event queries, ALWAYS fetch the live page
-    if intent['is_date_query'] or any(k in query_lower for k in ['impuls','workshop','termine','veranstaltung','events']):
+    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
         print(f"LIVE FETCH: Fetching current Impuls-Workshops page")
         live_chunk = fetch_live_impuls_workshops()
         if live_chunk:
@@ -469,7 +477,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
             print(f"   LIVE DATA: Added with score 200 (highest priority)")
     
     # PRIORITAT 1: Bei Event/Workshop-Anfragen die Abersichtsseiten ZUERST! (Score 150)
-    if intent['is_date_query'] or any(k in query_lower for k in ['impuls','workshop','termine','veranstaltung','events']):
+    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
         print(f"Y Prioritizing overview pages for workshop/event query")
         for overview_url in overview_urls:
             if overview_url in URL_INDEX:
@@ -479,7 +487,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                         print(f"   Added overview page with score 150")
     
     # LIVE FETCH: For Innovationsfonds queries, ALWAYS fetch live data
-    if intent['is_innovationsfonds_query'] or (intent['subject_keywords'] and any(w in query_lower for w in ['projekt','projekte','innovations','innovationsfonds'])):
+    if intent['is_innovationsfonds_query']:
         if intent['subject_keywords']:
             # Subject-specific query: fetch each subject's page
             print(f"LIVE FETCH: Innovationsfonds projects for subjects: {intent['subject_keywords']}")
@@ -500,7 +508,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                     'elektroberufe': 'Elektroberufe',
                     'englisch': 'Englisch',
                     'fage': 'FaGe',
-                    'franzoesisch': 'Franzoesisch',
+                    'franzoesisch': 'Franzosisch',
                     'geographie': 'Geographie',
                     'geomatiker': 'Geomatiker:innen EFZ',
                     'geschichte': 'Geschichte',
@@ -536,7 +544,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                 print(f"   LIVE DATA: Added overview with score 210")
     
     # PRIORITAT 2: Metadaten-basierte Fachsuche fuer Innovationsfonds (Score 200)
-    if intent['is_innovationsfonds_query'] and intent['subject_keywords']:
+    if (intent['is_innovationsfonds_query'] and intent['subject_keywords']) or (intent['subject_keywords'] and any(w in query_lower for w in ['projekt','projekte','innovations','innovationsfonds'])):
         print(f"Y Searching for Innovationsfonds projects in subjects: {intent['subject_keywords']}")
         for subject in intent['subject_keywords']:
             if subject in SUBJECT_INDEX:
@@ -549,7 +557,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                                 results.append((200, chunk))
     
     # PRIORITAT 3: Allgemeine Innovationsfonds-Anfragen (Score 150)
-    elif intent['is_innovationsfonds_query'] or (intent['subject_keywords'] and any(w in query_lower for w in ['projekt','projekte','innovations','innovationsfonds'])):
+    elif intent['is_innovationsfonds_query']:
         for url, indices in URL_INDEX.items():
             if 'projektvorstellungen' in url:
                 for idx in indices:
@@ -704,7 +712,7 @@ Beantworte die Frage. Zeige zukA14nftige Events zuerst, chronologisch sortiert."
         
         context = "\n".join(context_parts)
         
-        if intent['is_innovationsfonds_query'] or (intent['subject_keywords'] and any(w in query_lower for w in ['projekt','projekte','innovations','innovationsfonds'])):
+        if intent['is_innovationsfonds_query']:
             prompt = f"""KONTEXT (Innovationsfonds-Projekte mit URLs):
 {context}
 
@@ -761,7 +769,7 @@ async def ask_question(request: QuestionRequest):
         prompt = create_enhanced_prompt(request.question, relevant_chunks, intent)
         
         # System Prompt fuer garantierte Formatierung!
-        system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung.
+        system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung. Wenn der Kontext mehrere Terminzeilen enthaelt, **liste ALLE** kommenden Termine als einzelne Zeilen (Datum – Zeit – verlinkter Titel).
 
 KRITISCHE REGEL - PROJEKTTITEL MASSEN IMMER KLICKBARE LINKS SEIN:
 Format: <strong><a href="VOLLSTANDIGE-URL" target="_blank">Projekttitel</a></strong><br>

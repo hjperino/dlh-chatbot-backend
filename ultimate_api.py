@@ -17,6 +17,7 @@ import os
 import re
 import uvicorn
 import logging
+import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -208,6 +209,132 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     
     return dates_found
 
+def fetch_live_impuls_workshops() -> Optional[Dict]:
+    """
+    Fetch the live Impuls-Workshops page and return as a chunk.
+    This ensures we always have the most current workshop information.
+    """
+    try:
+        logger.info("FETCHING LIVE: Impuls-Workshops page from dlh.zh.ch")
+        
+        url = "https://dlh.zh.ch/home/impuls-workshops"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        # Extract text content from HTML
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Get the main content text
+        content = soup.get_text(separator=' ', strip=True)
+        
+        # Create a chunk in the same format as processed_chunks.json
+        live_chunk = {
+            'content': content,
+            'metadata': {
+                'source': url,
+                'title': 'Impuls-Workshops - Digital Learning Hub Sek II (LIVE)',
+                'fetched_live': True,
+                'fetch_time': datetime.now().isoformat()
+            }
+        }
+        
+        logger.info(f"LIVE FETCH SUCCESS: Retrieved {len(content)} characters")
+        return live_chunk
+        
+    except Exception as e:
+        logger.error(f"LIVE FETCH FAILED: {str(e)}")
+        return None
+
+def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]:
+    """
+    Fetch live Innovationsfonds project pages.
+    
+    Args:
+        subject: Subject name (e.g., "Chemie", "Mathematik") or None for overview
+    
+    Returns:
+        Chunk with live data or None if fetch fails
+    """
+    # Mapping: Subject name -> URL slug
+    subject_url_map = {
+        'ABU': 'abu',
+        'Architektur EFZ': 'architektur-efz',
+        'Automobilberufe': 'automobilberufe',
+        'Berufskunde': 'berufskunde',
+        'Bildnerisches Gestalten': 'bildnerisches-gestalten',
+        'Biologie': 'biologie',
+        'Brückenangebot': 'brueckenangebot',
+        'Chemie': 'chemie',
+        'Coiffeuse-Coiffeur': 'coiffeuse-coiffeur',
+        'Deutsch': 'deutsch',
+        'EBA': 'eba',
+        'Elektroberufe': 'elektroberufe',
+        'Englisch': 'englisch',
+        'FaGe': 'fage',
+        'Französisch': 'franzoesisch',
+        'Geographie': 'geographie',
+        'Geomatiker:innen EFZ': 'geomatiker-innen-efz',
+        'Geschichte': 'geschichte',
+        'Geschichte und Politik': 'geschichte-und-politik',
+        'Griechisch': 'griechisch',
+        'IKA': 'ika',
+        'Informatik': 'informatik',
+        'Italienisch': 'italienisch',
+        'Landwirtschaftsmechaniker:innen': 'landwirtschaftsmechaniker-innen',
+        'Latein': 'latein',
+        'Mathematik': 'mathematik',
+        'Maurer:innen': 'maurer-innen',
+        'Physik': 'physik',
+        'Russisch': 'russisch',
+        'Schreiner:in': 'schreiner-in',
+        'Sozialwissenschaften': 'sozialwissenschaften',
+        'Spanisch': 'spanisch',
+        'Sport': 'sport',
+        'Überfachlich': 'ueberfachlich',
+        'Wirtschaft': 'wirtschaft'
+    }
+    
+    try:
+        # Build URL based on subject
+        base_url = "https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht"
+        
+        if subject and subject in subject_url_map:
+            url_slug = subject_url_map[subject]
+            url = f"{base_url}/filterergebnisse-fuer-projekte/tags/{url_slug}"
+            logger.info(f"FETCHING LIVE: Innovationsfonds {subject} projects from dlh.zh.ch")
+        else:
+            url = base_url
+            logger.info(f"FETCHING LIVE: Innovationsfonds overview from dlh.zh.ch")
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        # Extract text content from HTML
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+        content = soup.get_text(separator=' ', strip=True)
+        
+        # Create chunk
+        title_suffix = f" - {subject}" if subject else " - Übersicht"
+        live_chunk = {
+            'content': content,
+            'metadata': {
+                'source': url,
+                'title': f'Innovationsfonds Projekte{title_suffix} (LIVE)',
+                'fetched_live': True,
+                'fetch_time': datetime.now().isoformat(),
+                'faecher': [subject] if subject else []
+            }
+        }
+        
+        logger.info(f"LIVE FETCH SUCCESS: Retrieved {len(content)} characters")
+        return live_chunk
+        
+    except Exception as e:
+        logger.error(f"LIVE FETCH FAILED: {str(e)}")
+        return None
+
 def sort_events_chronologically(chunks: List[Dict], current_date: datetime = None) -> Dict[str, List[Dict]]:
     """Sortiere Events chronologisch"""
     if current_date is None:
@@ -328,6 +455,15 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
         'https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht'
     ]
     
+    # LIVE FETCH: For workshop/event queries, ALWAYS fetch the live page
+    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+        print(f"LIVE FETCH: Fetching current Impuls-Workshops page")
+        live_chunk = fetch_live_impuls_workshops()
+        if live_chunk:
+            # Add live data with HIGHEST priority (200)
+            results.append((200, live_chunk))
+            print(f"   LIVE DATA: Added with score 200 (highest priority)")
+    
     # PRIORITÃ„T 1: Bei Event/Workshop-Anfragen die Ãœbersichtsseiten ZUERST! (Score 150)
     if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
         print(f"ðŸ” Prioritizing overview pages for workshop/event query")
@@ -337,6 +473,63 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                     if idx < len(CHUNKS):
                         results.append((150, CHUNKS[idx]))
                         print(f"   Added overview page with score 150")
+    
+    # LIVE FETCH: For Innovationsfonds queries, ALWAYS fetch live data
+    if intent['is_innovationsfonds_query']:
+        if intent['subject_keywords']:
+            # Subject-specific query: fetch each subject's page
+            print(f"LIVE FETCH: Innovationsfonds projects for subjects: {intent['subject_keywords']}")
+            for subject in intent['subject_keywords']:
+                # Map lowercase subject back to proper case
+                subject_map = {
+                    'abu': 'ABU',
+                    'architektur': 'Architektur EFZ',
+                    'automobilberufe': 'Automobilberufe',
+                    'berufskunde': 'Berufskunde',
+                    'bildnerisches gestalten': 'Bildnerisches Gestalten',
+                    'biologie': 'Biologie',
+                    'brueckenangebot': 'Brückenangebot',
+                    'chemie': 'Chemie',
+                    'coiffeuse': 'Coiffeuse-Coiffeur',
+                    'deutsch': 'Deutsch',
+                    'eba': 'EBA',
+                    'elektroberufe': 'Elektroberufe',
+                    'englisch': 'Englisch',
+                    'fage': 'FaGe',
+                    'franzoesisch': 'Französisch',
+                    'geographie': 'Geographie',
+                    'geomatiker': 'Geomatiker:innen EFZ',
+                    'geschichte': 'Geschichte',
+                    'geschichte und politik': 'Geschichte und Politik',
+                    'griechisch': 'Griechisch',
+                    'ika': 'IKA',
+                    'informatik': 'Informatik',
+                    'italienisch': 'Italienisch',
+                    'landwirtschaftsmechaniker': 'Landwirtschaftsmechaniker:innen',
+                    'latein': 'Latein',
+                    'mathematik': 'Mathematik',
+                    'maurer': 'Maurer:innen',
+                    'physik': 'Physik',
+                    'russisch': 'Russisch',
+                    'schreiner': 'Schreiner:in',
+                    'sozialwissenschaften': 'Sozialwissenschaften',
+                    'spanisch': 'Spanisch',
+                    'sport': 'Sport',
+                    'ueberfachlich': 'Überfachlich',
+                    'wirtschaft': 'Wirtschaft'
+                }
+                proper_subject = subject_map.get(subject, subject.capitalize())
+                live_chunk = fetch_live_innovationsfonds(subject=proper_subject)
+                if live_chunk:
+                    results.append((210, live_chunk))  # Priority 210 - highest!
+                    print(f"   LIVE DATA: Added {proper_subject} projects with score 210")
+        else:
+            # General query: fetch overview page
+            print(f"LIVE FETCH: Innovationsfonds overview page")
+            live_chunk = fetch_live_innovationsfonds(subject=None)
+            if live_chunk:
+                results.append((210, live_chunk))  # Priority 210 - highest!
+                print(f"   LIVE DATA: Added overview with score 210")
     
     # PRIORITÃ„T 2: Metadaten-basierte Fachsuche fuer Innovationsfonds (Score 200)
     if intent['is_innovationsfonds_query'] and intent['subject_keywords']:

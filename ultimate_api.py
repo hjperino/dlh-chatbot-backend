@@ -209,173 +209,31 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     
     return dates_found
 
+
 def fetch_live_impuls_workshops() -> Optional[Dict]:
-    """
-    Fetch the live Impuls-Workshops page and return as a chunk.
-    This ensures we always have the most current workshop information.
-    """
-    try:
-        logger.info("FETCHING LIVE: Impuls-Workshops page from dlh.zh.ch")
-        
-        url = "https://dlh.zh.ch/home/impuls-workshops"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        
-        # Extract text content from HTML
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Get the main content text
-        content = soup.get_text(separator=' ', strip=True)
-        
-        # Create a chunk in the same format as processed_chunks.json
-        live_chunk = {
-            'content': content,
-            'metadata': {
-                'source': url,
-                'title': 'Impuls-Workshops - Digital Learning Hub Sek II (LIVE)',
-                'fetched_live': True,
-                'fetch_time': datetime.now().isoformat()
-            }
-        }
-        
-        logger.info(f"LIVE FETCH SUCCESS: Retrieved {len(content)} characters")
-        return live_chunk
-        
-    except Exception as e:
-        logger.error(f"LIVE FETCH FAILED: {str(e)}")
+    """Fetch live Impuls-Workshops and return a chunk containing multiple upcoming events as HTML list."""
+    print("LIVE FETCH: Fetching current Impuls-Workshops page")
+    events = get_upcoming_impuls_workshops_live(max_items=12)
+    if not events:
+        print("LIVE FETCH: No events found on Impuls-Workshops page")
         return None
-
-def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]:
-    """
-    Fetch live Innovationsfonds project pages.
-    
-    Args:
-        subject: Subject name (e.g., "Chemie", "Mathematik") or None for overview
-    
-    Returns:
-        Chunk with live data or None if fetch fails
-    """
-    # Mapping: Subject name -> URL slug
-    subject_url_map = {
-        'ABU': 'abu',
-        'Architektur EFZ': 'architektur-efz',
-        'Automobilberufe': 'automobilberufe',
-        'Berufskunde': 'berufskunde',
-        'Bildnerisches Gestalten': 'bildnerisches-gestalten',
-        'Biologie': 'biologie',
-        'Bruckenangebot': 'brueckenangebot',
-        'Chemie': 'chemie',
-        'Coiffeuse-Coiffeur': 'coiffeuse-coiffeur',
-        'Deutsch': 'deutsch',
-        'EBA': 'eba',
-        'Elektroberufe': 'elektroberufe',
-        'Englisch': 'englisch',
-        'FaGe': 'fage',
-        'Franzosisch': 'franzoesisch',
-        'Geographie': 'geographie',
-        'Geomatiker:innen EFZ': 'geomatiker-innen-efz',
-        'Geschichte': 'geschichte',
-        'Geschichte und Politik': 'geschichte-und-politik',
-        'Griechisch': 'griechisch',
-        'IKA': 'ika',
-        'Informatik': 'informatik',
-        'Italienisch': 'italienisch',
-        'Landwirtschaftsmechaniker:innen': 'landwirtschaftsmechaniker-innen',
-        'Latein': 'latein',
-        'Mathematik': 'mathematik',
-        'Maurer:innen': 'maurer-innen',
-        'Physik': 'physik',
-        'Russisch': 'russisch',
-        'Schreiner:in': 'schreiner-in',
-        'Sozialwissenschaften': 'sozialwissenschaften',
-        'Spanisch': 'spanisch',
-        'Sport': 'sport',
-        'Uberfachlich': 'ueberfachlich',
-        'Wirtschaft': 'wirtschaft'
-    }
-    
-    try:
-        # Build URL based on subject
-        base_url = "https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht"
-        
-        if subject and subject in subject_url_map:
-            url_slug = subject_url_map[subject]
-            url = f"{base_url}/filterergebnisse-fuer-projekte/tags/{url_slug}"
-            logger.info(f"FETCHING LIVE: Innovationsfonds {subject} projects from dlh.zh.ch")
-        else:
-            url = base_url
-            logger.info(f"FETCHING LIVE: Innovationsfonds overview from dlh.zh.ch")
-        
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        
-        # Extract text content from HTML
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.text, 'html.parser')
-        content = soup.get_text(separator=' ', strip=True)
-        
-        # Create chunk
-        title_suffix = f" - {subject}" if subject else " - Ubersicht"
-        live_chunk = {
-            'content': content,
-            'metadata': {
-                'source': url,
-                'title': f'Innovationsfonds Projekte{title_suffix} (LIVE)',
-                'fetched_live': True,
-                'fetch_time': datetime.now().isoformat(),
-                'faecher': [subject] if subject else []
-            }
-        }
-        
-        logger.info(f"LIVE FETCH SUCCESS: Retrieved {len(content)} characters")
-        return live_chunk
-        
-    except Exception as e:
-        logger.error(f"LIVE FETCH FAILED: {str(e)}")
-        return None
-
-def sort_events_chronologically(chunks: List[Dict], current_date: datetime = None) -> Dict[str, List[Dict]]:
-    """Sortiere Events chronologisch"""
-    if current_date is None:
-        current_date = datetime.now()
-    
-    future_events = []
-    past_events = []
-    no_date_events = []
-    
-    for chunk in chunks:
-        content = chunk['content']
-        dates = extract_dates_from_text(content)
-        
-        if dates:
-            dates.sort(key=lambda x: x[0])
-            earliest_date = dates[0][0]
-            
-            event_info = {
-                'chunk': chunk,
-                'date': earliest_date,
-                'date_str': dates[0][2],
-                'all_dates': dates,
-                'context': dates[0][1]
-            }
-            
-            if earliest_date.date() < current_date.date():
-                past_events.append(event_info)
-            else:
-                future_events.append(event_info)
-        else:
-            no_date_events.append({'chunk': chunk})
-    
-    future_events.sort(key=lambda x: x['date'])
-    past_events.sort(key=lambda x: x['date'], reverse=True)
-    
+    lines = ["<ul>"]
+    for e in events:
+        title_html = f'<a href="{e["url"]}" target="_blank" rel="noopener">{e["title"]}</a>'
+        li = f'<li><strong>{e["when_text"]}</strong> – {title_html}</li>'
+        lines.append(li)
+    lines.append("</ul>")
+    content = "\n".join(lines)
+    print(f"LIVE FETCH SUCCESS: Compiled {len(events)} events into HTML list")
     return {
-        'future_events': future_events,
-        'past_events': past_events,
-        'no_date_events': no_date_events
+        'content': content,
+        'metadata': {
+            'source': "https://dlh.zh.ch/home/impuls-workshops",
+            'title': 'Impuls-Workshops - Digital Learning Hub Sek II (LIVE)',
+            'is_event_page': True,
+            'fetched_live': True
+        }
     }
-
 def extract_query_intent(query: str) -> Dict[str, any]:
     """Analysiere die Absicht der Frage"""
     query_lower = query.lower()
@@ -468,7 +326,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     ]
     
     # LIVE FETCH: For workshop/event queries, ALWAYS fetch the live page
-    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+    if intent['is_date_query'] or any(k in query_lower for k in ['impuls','workshop','termine','veranstaltung','events']):
         print(f"LIVE FETCH: Fetching current Impuls-Workshops page")
         live_chunk = fetch_live_impuls_workshops()
         if live_chunk:
@@ -477,7 +335,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
             print(f"   LIVE DATA: Added with score 200 (highest priority)")
     
     # PRIORITAT 1: Bei Event/Workshop-Anfragen die Abersichtsseiten ZUERST! (Score 150)
-    if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
+    if intent['is_date_query'] or any(k in query_lower for k in ['impuls','workshop','termine','veranstaltung','events']):
         print(f"Y Prioritizing overview pages for workshop/event query")
         for overview_url in overview_urls:
             if overview_url in URL_INDEX:
@@ -769,7 +627,7 @@ async def ask_question(request: QuestionRequest):
         prompt = create_enhanced_prompt(request.question, relevant_chunks, intent)
         
         # System Prompt fuer garantierte Formatierung!
-        system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung. Wenn der Kontext mehrere Terminzeilen enthaelt, **liste ALLE** kommenden Termine als einzelne Zeilen (Datum – Zeit – verlinkter Titel).
+        system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung. Wenn der Kontext mehrere Termin- oder Projektzeilen enthaelt, liste ALLE als eine HTML-Liste (<ul><li>…</li></ul>) auf. Wenn der Kontext mehrere Terminzeilen enthaelt, **liste ALLE** kommenden Termine als einzelne Zeilen (Datum – Zeit – verlinkter Titel).
 
 KRITISCHE REGEL - PROJEKTTITEL MASSEN IMMER KLICKBARE LINKS SEIN:
 Format: <strong><a href="VOLLSTANDIGE-URL" target="_blank">Projekttitel</a></strong><br>

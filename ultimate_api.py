@@ -214,13 +214,13 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
 
 def sort_events_chronologically(chunks: List[Dict], current_date: datetime = None) -> Dict[str, List[Dict]]:
     """
-    Sortiere Events chronologisch und trenne vergangene von zukÃ¼nftigen Events
+    Sortiere Events chronologisch und trenne vergangene von zukunftigen Events
     """
     if current_date is None:
         current_date = datetime.now()
     
-    logger.info(f"â° CHRONOLOGICAL SORTING: Processing {len(chunks)} chunks")
-    logger.info(f"â° Current date: {current_date.strftime('%d.%m.%Y')}")
+    logger.info(f"CHRONOLOGICAL SORTING: Processing {len(chunks)} chunks")
+    logger.info(f"Current date: {current_date.strftime('%d.%m.%Y')}")
     
     future_events = []
     past_events = []
@@ -247,10 +247,10 @@ def sort_events_chronologically(chunks: List[Dict], current_date: datetime = Non
             
             if earliest_date.date() < current_date.date():
                 past_events.append(event_info)
-                logger.info(f"    â†' PAST event (before today)")
+                logger.info(f"    -> PAST event (before today)")
             else:
                 future_events.append(event_info)
-                logger.info(f"    â†' FUTURE event (on or after today)")
+                logger.info(f"    -> FUTURE event (on or after today)")
         else:
             no_date_events.append({'chunk': chunk})
             logger.info(f"  Chunk {i+1}: No date found in {source[:60]}...")
@@ -258,7 +258,7 @@ def sort_events_chronologically(chunks: List[Dict], current_date: datetime = Non
     future_events.sort(key=lambda x: x['date'])
     past_events.sort(key=lambda x: x['date'], reverse=True)
     
-    logger.info(f"\nâœ… SORTING RESULTS:")
+    logger.info(f"\nSORTING RESULTS:")
     logger.info(f"   Future events: {len(future_events)}")
     if future_events:
         for i, event in enumerate(future_events[:3]):
@@ -490,7 +490,7 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
     
     # Sortiere Events chronologisch wenn es eine Datumsabfrage ist
     if intent['is_date_query'] or any(keyword in ['workshop', 'veranstaltung'] for keyword in intent['topic_keywords']):
-        logger.info(f"ðŸ"„ TRIGGERING CHRONOLOGICAL SORTING")
+        logger.info(f"TRIGGERING CHRONOLOGICAL SORTING")
         logger.info(f"   is_date_query: {intent['is_date_query']}")
         logger.info(f"   topic_keywords: {intent['topic_keywords']}")
         
@@ -703,7 +703,7 @@ async def ask_question(request: QuestionRequest):
         
         # Get response from Claude Sonnet 4.5
         model_name = "claude-sonnet-4-5-20250929"
-        logger.info(f"🤖 Using Claude model: {model_name}")
+        logger.info(f"Using Claude model: {model_name}")
         
         try:
             response = anthropic_client.messages.create(

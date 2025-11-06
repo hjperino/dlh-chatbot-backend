@@ -58,7 +58,7 @@ def load_and_preprocess_data():
     try:
         file_path = 'processed/processed_chunks.json'
         
-        print(f"ðŸ” Attempting to load data from: {file_path}")
+        print(f"Y Attempting to load data from: {file_path}")
         
         with open(file_path, 'r', encoding='utf-8') as f:
             chunks = json.load(f)
@@ -77,7 +77,7 @@ def load_and_preprocess_data():
                 url_index[url] = []
             url_index[url].append(i)
             
-            # FÃ¤cher-Index aus Metadaten
+            # FAcher-Index aus Metadaten
             faecher = chunk['metadata'].get('faecher', [])
             if faecher:
                 for fach in faecher:
@@ -94,7 +94,7 @@ def load_and_preprocess_data():
                 'impuls', 'termin', 'anmeldung', 'lunch', 'learn',
                 'impuls-workshop', 'impulsworkshop', 'veranstaltung', 'event',
                 'chemie', 'physik', 'biologie', 'mathematik', 'informatik',
-                'deutsch', 'englisch', 'franzÃ¶sisch', 'italienisch', 'spanisch',
+                'deutsch', 'englisch', 'franzAsisch', 'italienisch', 'spanisch',
                 'geschichte', 'geografie', 'wirtschaft', 'recht', 'philosophie'
             ]
             
@@ -104,12 +104,12 @@ def load_and_preprocess_data():
                         keyword_index[term] = []
                     keyword_index[term].append(i)
         
-        print(f"ðŸ” Indexed {len(keyword_index)} keywords")
-        print(f"ðŸ“š Indexed {len(subject_index)} subjects in metadata")
+        print(f"Y Indexed {len(keyword_index)} keywords")
+        print(f"Ys Indexed {len(subject_index)} subjects in metadata")
         
         return chunks, keyword_index, url_index, subject_index
     except Exception as e:
-        print(f"âŒ Error loading data: {e}")
+        print(f"a Error loading data: {e}")
         import traceback
         traceback.print_exc()
         return [], {}, {}, {}
@@ -133,7 +133,7 @@ class AnswerResponse(BaseModel):
     sources: List[Source]
 
 def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
-    """Extrahiere Daten aus Text - unterstÃ¼tzt auch abgekÃ¼rzte Monatsnamen"""
+    """Extrahiere Daten aus Text - unterstA14tzt auch abgekA14rzte Monatsnamen"""
     dates_found = []
     
     month_map_full = {
@@ -143,7 +143,7 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     }
     
     month_map_abbr = {
-        'jan': 1, 'feb': 2, 'mÃ¤r': 3, 'maerz': 3, 'mrz': 3, 'apr': 4,
+        'jan': 1, 'feb': 2, 'mAr': 3, 'maerz': 3, 'mrz': 3, 'apr': 4,
         'mai': 5, 'jun': 6, 'jul': 7, 'aug': 8,
         'sep': 9, 'sept': 9, 'okt': 10, 'nov': 11, 'dez': 12
     }
@@ -151,7 +151,7 @@ def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     patterns = [
         (r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', 'numeric'),
         (r'(\d{1,2})\.\s*(Januar|Februar|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})', 'full_month'),
-        (r'(\d{1,2})\.?\s+(Jan\.?|Feb\.?|MÃ¤r\.?|Maerz\.?|Mrz\.?|Apr\.?|Mai\.?|Jun\.?|Jul\.?|Aug\.?|Sep\.?|Sept\.?|Okt\.?|Nov\.?|Dez\.?)\s+(\d{4})', 'abbr_month'),
+        (r'(\d{1,2})\.?\s+(Jan\.?|Feb\.?|MAr\.?|Maerz\.?|Mrz\.?|Apr\.?|Mai\.?|Jun\.?|Jul\.?|Aug\.?|Sep\.?|Sept\.?|Okt\.?|Nov\.?|Dez\.?)\s+(\d{4})', 'abbr_month'),
     ]
     
     # Pattern 1: DD.MM.YYYY
@@ -264,7 +264,7 @@ def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]
         'Berufskunde': 'berufskunde',
         'Bildnerisches Gestalten': 'bildnerisches-gestalten',
         'Biologie': 'biologie',
-        'Brückenangebot': 'brueckenangebot',
+        'Bruckenangebot': 'brueckenangebot',
         'Chemie': 'chemie',
         'Coiffeuse-Coiffeur': 'coiffeuse-coiffeur',
         'Deutsch': 'deutsch',
@@ -272,7 +272,7 @@ def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]
         'Elektroberufe': 'elektroberufe',
         'Englisch': 'englisch',
         'FaGe': 'fage',
-        'Französisch': 'franzoesisch',
+        'Franzosisch': 'franzoesisch',
         'Geographie': 'geographie',
         'Geomatiker:innen EFZ': 'geomatiker-innen-efz',
         'Geschichte': 'geschichte',
@@ -291,7 +291,7 @@ def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]
         'Sozialwissenschaften': 'sozialwissenschaften',
         'Spanisch': 'spanisch',
         'Sport': 'sport',
-        'Überfachlich': 'ueberfachlich',
+        'Uberfachlich': 'ueberfachlich',
         'Wirtschaft': 'wirtschaft'
     }
     
@@ -316,7 +316,7 @@ def fetch_live_innovationsfonds(subject: Optional[str] = None) -> Optional[Dict]
         content = soup.get_text(separator=' ', strip=True)
         
         # Create chunk
-        title_suffix = f" - {subject}" if subject else " - Übersicht"
+        title_suffix = f" - {subject}" if subject else " - Ubersicht"
         live_chunk = {
             'content': content,
             'metadata': {
@@ -415,7 +415,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'informatik': ['informatik'],
         'deutsch': ['deutsch'],
         'englisch': ['englisch'],
-        'franzÃ¶sisch': ['franzÃ¶sisch'],
+        'franzAsisch': ['franzAsisch'],
         'italienisch': ['italienisch'],
         'spanisch': ['spanisch'],
         'geschichte': ['geschichte'],
@@ -464,9 +464,9 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
             results.append((200, live_chunk))
             print(f"   LIVE DATA: Added with score 200 (highest priority)")
     
-    # PRIORITÃ„T 1: Bei Event/Workshop-Anfragen die Ãœbersichtsseiten ZUERST! (Score 150)
+    # PRIORITAT 1: Bei Event/Workshop-Anfragen die Abersichtsseiten ZUERST! (Score 150)
     if intent['is_date_query'] and any(kw in ['workshop', 'veranstaltung'] for kw in intent['topic_keywords']):
-        print(f"ðŸ” Prioritizing overview pages for workshop/event query")
+        print(f"Y Prioritizing overview pages for workshop/event query")
         for overview_url in overview_urls:
             if overview_url in URL_INDEX:
                 for idx in URL_INDEX[overview_url][:2]:
@@ -488,7 +488,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                     'berufskunde': 'Berufskunde',
                     'bildnerisches gestalten': 'Bildnerisches Gestalten',
                     'biologie': 'Biologie',
-                    'brueckenangebot': 'Brückenangebot',
+                    'brueckenangebot': 'Bruckenangebot',
                     'chemie': 'Chemie',
                     'coiffeuse': 'Coiffeuse-Coiffeur',
                     'deutsch': 'Deutsch',
@@ -496,7 +496,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                     'elektroberufe': 'Elektroberufe',
                     'englisch': 'Englisch',
                     'fage': 'FaGe',
-                    'franzoesisch': 'Französisch',
+                    'franzoesisch': 'Franzosisch',
                     'geographie': 'Geographie',
                     'geomatiker': 'Geomatiker:innen EFZ',
                     'geschichte': 'Geschichte',
@@ -515,7 +515,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                     'sozialwissenschaften': 'Sozialwissenschaften',
                     'spanisch': 'Spanisch',
                     'sport': 'Sport',
-                    'ueberfachlich': 'Überfachlich',
+                    'ueberfachlich': 'Uberfachlich',
                     'wirtschaft': 'Wirtschaft'
                 }
                 proper_subject = subject_map.get(subject, subject.capitalize())
@@ -531,9 +531,9 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                 results.append((210, live_chunk))  # Priority 210 - highest!
                 print(f"   LIVE DATA: Added overview with score 210")
     
-    # PRIORITÃ„T 2: Metadaten-basierte Fachsuche fuer Innovationsfonds (Score 200)
+    # PRIORITAT 2: Metadaten-basierte Fachsuche fuer Innovationsfonds (Score 200)
     if intent['is_innovationsfonds_query'] and intent['subject_keywords']:
-        print(f"ðŸ” Searching for Innovationsfonds projects in subjects: {intent['subject_keywords']}")
+        print(f"Y Searching for Innovationsfonds projects in subjects: {intent['subject_keywords']}")
         for subject in intent['subject_keywords']:
             if subject in SUBJECT_INDEX:
                 print(f"   Found {len(SUBJECT_INDEX[subject])} projects in {subject} via metadata")
@@ -544,7 +544,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                             if not any(r[1] == chunk for r in results):
                                 results.append((200, chunk))
     
-    # PRIORITÃ„T 3: Allgemeine Innovationsfonds-Anfragen (Score 150)
+    # PRIORITAT 3: Allgemeine Innovationsfonds-Anfragen (Score 150)
     elif intent['is_innovationsfonds_query']:
         for url, indices in URL_INDEX.items():
             if 'projektvorstellungen' in url:
@@ -603,7 +603,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     
     results.sort(key=lambda x: x[0], reverse=True)
     
-    print(f"ðŸ“Š Search results before deduplication: {len(results)}")
+    print(f"YS Search results before deduplication: {len(results)}")
     if results:
         print(f"   Top 5 scores: {[r[0] for r in results[:5]]}")
     
@@ -648,7 +648,7 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
             context_parts.append("=== KOMMENDE VERANSTALTUNGEN (chronologisch sortiert) ===")
             for event in sorted_events['future_events']:
                 days_until = (event['date'].date() - current_date.date()).days
-                context_parts.append(f"\nðŸ“… DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (in {days_until} Tagen)")
+                context_parts.append(f"\nY... DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (in {days_until} Tagen)")
                 context_parts.append(f"Titel: {event['chunk']['metadata'].get('title', 'Unbekannt')}")
                 context_parts.append(f"Quelle: {event['chunk']['metadata'].get('source', 'Unbekannt')}")
                 context_parts.append(event['chunk']['content'][:400])
@@ -658,7 +658,7 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
             context_parts.append("\n\n=== VERGANGENE VERANSTALTUNGEN ===")
             for event in sorted_events['past_events'][:5]:
                 days_ago = (current_date.date() - event['date'].date()).days
-                context_parts.append(f"\nðŸ“… DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (vor {days_ago} Tagen - BEREITS VORBEI)")
+                context_parts.append(f"\nY... DATUM: {event['date'].strftime('%d.%m.%Y (%A)')} (vor {days_ago} Tagen - BEREITS VORBEI)")
                 context_parts.append(f"Titel: {event['chunk']['metadata'].get('title', 'Unbekannt')}")
                 context_parts.append(f"Quelle: {event['chunk']['metadata'].get('source', 'Unbekannt')}")
                 context_parts.append(event['chunk']['content'][:400])
@@ -681,7 +681,7 @@ KONTEXT (chronologisch sortierte Veranstaltungen):
 
 FRAGE: {question}
 
-Beantworte die Frage. Zeige zukÃ¼nftige Events zuerst, chronologisch sortiert."""
+Beantworte die Frage. Zeige zukA14nftige Events zuerst, chronologisch sortiert."""
 
     else:
         # Projekte
@@ -694,7 +694,7 @@ Beantworte die Frage. Zeige zukÃ¼nftige Events zuerst, chronologisch sortiert.
             context_parts.append(f"=== Projekt: {title} ===")
             context_parts.append(f"URL: {url}")
             if faecher:
-                context_parts.append(f"FÃ¤cher: {', '.join(faecher)}")
+                context_parts.append(f"FAcher: {', '.join(faecher)}")
             context_parts.append(chunk['content'][:400])
             context_parts.append("---\n")
         
@@ -742,7 +742,7 @@ async def ask_question(request: QuestionRequest):
     try:
         intent = extract_query_intent(request.question)
         
-        print(f"\nðŸ” Query: {request.question}")
+        print(f"\nY Query: {request.question}")
         print(f"   Intent: date={intent['is_date_query']}, innovationsfonds={intent['is_innovationsfonds_query']}")
         print(f"   Topics: {intent['topic_keywords']}, Subjects: {intent['subject_keywords']}")
         
@@ -759,20 +759,20 @@ async def ask_question(request: QuestionRequest):
         # System Prompt fuer garantierte Formatierung!
         system_prompt = """Du bist der offizielle DLH Chatbot. Antworte auf Deutsch mit HTML-Formatierung.
 
-KRITISCHE REGEL - PROJEKTTITEL MÃœSSEN IMMER KLICKBARE LINKS SEIN:
-Format: <strong><a href="VOLLSTÃ„NDIGE-URL" target="_blank">Projekttitel</a></strong><br>
-Beschreibung in 1-2 SÃ¤tzen<br><br>
+KRITISCHE REGEL - PROJEKTTITEL MASSEN IMMER KLICKBARE LINKS SEIN:
+Format: <strong><a href="VOLLSTANDIGE-URL" target="_blank">Projekttitel</a></strong><br>
+Beschreibung in 1-2 SAtzen<br><br>
 
 HTML-Tags:
 - <br> = Zeilenumbruch
 - <br><br> = Absatz
-- <strong> = Ãœberschriften
+- <strong> = Aberschriften
 - <a href="URL" target="_blank"> = Links
 - NIEMALS Markdown (*, #, _)
 
 BEISPIEL:
 <strong><a href="https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht/1042-histoswiss" target="_blank">HistoSwiss</a></strong><br>
-InterdisziplinÃ¤res Geschichtsprojekt mit digitalen Werkzeugen<br><br>"""
+InterdisziplinAres Geschichtsprojekt mit digitalen Werkzeugen<br><br>"""
 
         try:
             response = anthropic_client.messages.create(
@@ -786,7 +786,7 @@ InterdisziplinÃ¤res Geschichtsprojekt mit digitalen Werkzeugen<br><br>"""
             answer = response.content[0].text
             
         except Exception as claude_error:
-            print(f"ðŸ”´ Claude API Error: {claude_error}")
+            print(f"Y  Claude API Error: {claude_error}")
             
             answer = "<strong>Entschuldigung, ich kann gerade nicht auf die KI zugreifen.</strong><br><br>"
             for i, chunk in enumerate(relevant_chunks[:3]):
@@ -817,9 +817,9 @@ InterdisziplinÃ¤res Geschichtsprojekt mit digitalen Werkzeugen<br><br>"""
 
 if __name__ == "__main__":
     print("\n Starting DLH Chatbot API (BEST OF BOTH WORLDS)...")
-    print(f"ðŸ“š Loaded {len(CHUNKS)} chunks")
-    print(f"ðŸ” Indexed {len(KEYWORD_INDEX)} keywords")
-    print(f"ðŸ“š Indexed {len(SUBJECT_INDEX)} subjects")
+    print(f"Ys Loaded {len(CHUNKS)} chunks")
+    print(f"Y Indexed {len(KEYWORD_INDEX)} keywords")
+    print(f"Ys Indexed {len(SUBJECT_INDEX)} subjects")
     print(" Features:")
     print("    System Prompt (guaranteed links)")
     print("    Metadata subject search")

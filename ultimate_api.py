@@ -1,15 +1,14 @@
 """
-Ultimate API server fÃ¼r DLH Chatbot - FINAL OPTIMIZED VERSION
+Ultimate API server fuer DLH Chatbot - FINAL OPTIMIZED VERSION
 Features:
 - Correct file path: processed/processed_chunks.json
-- Searches in metadata "fÃ¤cher" field for subject-specific projects
+- Searches in metadata "faecher" field for subject-specific projects
 - Guaranteed links for Innovationsfonds projects
 - Enhanced date extraction for events
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Tuple
 import json
@@ -35,7 +34,7 @@ load_dotenv()
 # Initialize FastAPI app
 app = FastAPI(
     title="DLH Chatbot API (Final Optimized)",
-    description="AI-powered chatbot fÃ¼r dlh.zh.ch - optimiert fÃ¼r Events & Innovationsfonds",
+    description="AI-powered chatbot fuer dlh.zh.ch - optimiert fuer Events & Innovationsfonds",
     version="3.5.0"
 )
 
@@ -65,10 +64,10 @@ def load_and_preprocess_data():
         
         print(f"âœ… Successfully loaded {len(chunks)} chunks from {file_path}")
         
-        # Erstelle Index fÃ¼r schnellere Suche
+        # Erstelle Index fuer schnellere Suche
         keyword_index = {}
         url_index = {}
-        subject_index = {}  # NEU: Index fÃ¼r FÃ¤cher
+        subject_index = {}  # NEU: Index fuer Faecher
         
         for i, chunk in enumerate(chunks):
             # URL-basierter Index
@@ -77,8 +76,8 @@ def load_and_preprocess_data():
                 url_index[url] = []
             url_index[url].append(i)
             
-            # NEU: FÃ¤cher-Index aus Metadaten
-            faecher = chunk['metadata'].get('fÃ¤cher', [])
+            # NEU: Faecher-Index aus Metadaten
+            faecher = chunk['metadata'].get('faecher', [])
             if faecher:
                 for fach in faecher:
                     fach_lower = fach.lower()
@@ -86,18 +85,18 @@ def load_and_preprocess_data():
                         subject_index[fach_lower] = []
                     subject_index[fach_lower].append(i)
             
-            # Keyword-Index fÃ¼r wichtige Begriffe
+            # Keyword-Index fuer wichtige Begriffe
             content = chunk['content'].lower()
             important_terms = [
                 'fobizz', 'genki', 'innovationsfonds', 'cop', 'cops',
                 'vernetzung', 'workshop', 'weiterbildung', 'kuratiert',
                 'impuls', 'termin', 'anmeldung', 'lunch', 'learn',
                 'impuls-workshop', 'impulsworkshop', 'veranstaltung', 'event',
-                # FÃ¤cher (auch im Content suchen)
+                # Faecher (auch im Content suchen)
                 'chemie', 'physik', 'biologie', 'mathematik', 'informatik',
-                'deutsch', 'englisch', 'franzÃ¶sisch', 'italienisch', 'spanisch',
+                'deutsch', 'englisch', 'franzoesisch', 'italienisch', 'spanisch',
                 'geschichte', 'geografie', 'wirtschaft', 'recht', 'philosophie',
-                'psychologie', 'pÃ¤dagogik', 'kunst', 'musik', 'sport'
+                'psychologie', 'paedagogik', 'kunst', 'musik', 'sport'
             ]
             
             for term in important_terms:
@@ -143,26 +142,26 @@ class AnswerResponse(BaseModel):
 
 def extract_dates_from_text(text: str) -> List[Tuple[datetime, str]]:
     """
-    Extrahiere Daten aus Text - unterstÃ¼tzt auch abgekÃ¼rzte Monatsnamen
+    Extrahiere Daten aus Text - unterstuetzt auch abgekuerzte Monatsnamen
     """
     dates_found = []
     
     month_map_full = {
-        'januar': 1, 'februar': 2, 'mÃ¤rz': 3, 'april': 4,
+        'januar': 1, 'februar': 2, 'maerz': 3, 'april': 4,
         'mai': 5, 'juni': 6, 'juli': 7, 'august': 8,
         'september': 9, 'oktober': 10, 'november': 11, 'dezember': 12
     }
     
     month_map_abbr = {
-        'jan': 1, 'feb': 2, 'mÃ¤r': 3, 'mÃ¤rz': 3, 'mrz': 3, 'apr': 4,
+        'jan': 1, 'feb': 2, 'maer': 3, 'maerz': 3, 'mrz': 3, 'apr': 4,
         'mai': 5, 'jun': 6, 'jul': 7, 'aug': 8,
         'sep': 9, 'sept': 9, 'okt': 10, 'nov': 11, 'dez': 12
     }
     
     patterns = [
         (r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', 'numeric'),
-        (r'(\d{1,2})\.\s*(Januar|Februar|MÃ¤rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})', 'full_month'),
-        (r'(\d{1,2})\.?\s+(Jan\.?|Feb\.?|MÃ¤r\.?|MÃ¤rz\.?|Mrz\.?|Apr\.?|Mai\.?|Jun\.?|Jul\.?|Aug\.?|Sep\.?|Sept\.?|Okt\.?|Nov\.?|Dez\.?)\s+(\d{4})', 'abbr_month'),
+        (r'(\d{1,2})\.\s*(Januar|Februar|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})', 'full_month'),
+        (r'(\d{1,2})\.?\s+(Jan\.?|Feb\.?|Maer\.?|Maerz\.?|Mrz\.?|Apr\.?|Mai\.?|Jun\.?|Jul\.?|Aug\.?|Sep\.?|Sept\.?|Okt\.?|Nov\.?|Dez\.?)\s+(\d{4})', 'abbr_month'),
     ]
     
     # Pattern 1: DD.MM.YYYY
@@ -291,14 +290,14 @@ def extract_query_intent(query: str) -> Dict[str, any]:
     ]
     
     intent = {
-        'is_date_query': any(term in query_lower for term in ['heute', 'morgen', 'termin', 'wann', 'datum', 'zeit', 'event', 'veranstaltung', 'nÃ¤chste', 'kommende']),
+        'is_date_query': any(term in query_lower for term in ['heute', 'morgen', 'termin', 'wann', 'datum', 'zeit', 'event', 'veranstaltung', 'naechste', 'kommende']),
         'is_how_to': any(term in query_lower for term in ['wie', 'anleitung', 'tutorial', 'schritte']),
         'is_definition': any(term in query_lower for term in ['was ist', 'was sind', 'definition', 'bedeutung']),
-        'wants_list': any(term in query_lower for term in ['welche', 'liste', 'alle', 'Ã¼berblick', 'Ã¼bersicht']),
+        'wants_list': any(term in query_lower for term in ['welche', 'liste', 'alle', 'ueberblick', 'uebersicht']),
         'wants_contact': any(term in query_lower for term in ['kontakt', 'anmeldung', 'email', 'telefon', 'anmelden']),
         'is_innovationsfonds_query': any(term in query_lower for term in innovationsfonds_terms),
         'topic_keywords': [],
-        'subject_keywords': []  # NEU: Speziell fÃ¼r FÃ¤cher
+        'subject_keywords': []  # NEU: Speziell fuer Faecher
     }
     
     # Themenerkennung
@@ -313,7 +312,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'kuratiert': ['kuratiert', 'kuratiertes', 'sammlung']
     }
     
-    # NEU: FÃ¤cher separat behandeln
+    # NEU: Faecher separat behandeln
     subjects = {
         'chemie': ['chemie'],
         'physik': ['physik'],
@@ -322,7 +321,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'informatik': ['informatik'],
         'deutsch': ['deutsch'],
         'englisch': ['englisch'],
-        'franzÃ¶sisch': ['franzÃ¶sisch'],
+        'franzoesisch': ['franzoesisch'],
         'italienisch': ['italienisch'],
         'spanisch': ['spanisch'],
         'geschichte': ['geschichte'],
@@ -331,7 +330,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         'recht': ['recht'],
         'philosophie': ['philosophie'],
         'psychologie': ['psychologie'],
-        'pÃ¤dagogik': ['pÃ¤dagogik'],
+        'paedagogik': ['paedagogik'],
         'kunst': ['kunst'],
         'musik': ['musik'],
         'sport': ['sport']
@@ -341,7 +340,7 @@ def extract_query_intent(query: str) -> Dict[str, any]:
         if any(kw in query_lower for kw in keywords):
             intent['topic_keywords'].append(topic)
     
-    # NEU: FÃ¤cher separat erkennen
+    # NEU: Faecher separat erkennen
     for subject, keywords in subjects.items():
         if any(kw in query_lower for kw in keywords):
             intent['subject_keywords'].append(subject)
@@ -349,22 +348,22 @@ def extract_query_intent(query: str) -> Dict[str, any]:
     return intent
 
 def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
-    """ENHANCED: Suche mit Priorisierung von Metadaten-FÃ¤chern"""
+    """ENHANCED: Suche mit Priorisierung von Metadaten-Faechern"""
     intent = extract_query_intent(query)
     query_lower = query.lower()
     query_words = set(query_lower.split())
     
     results = []
     
-    # Spezialbehandlung fÃ¼r Impuls-Workshops
+    # Spezialbehandlung fuer Impuls-Workshops
     if 'impuls' in query_lower and 'workshop' in query_lower:
         intent['topic_keywords'].append('impulsworkshop')
     
-    # NEU: Spezielle Behandlung fÃ¼r Fach-spezifische Innovationsfonds-Anfragen
+    # NEU: Spezielle Behandlung fuer Fach-spezifische Innovationsfonds-Anfragen
     if intent['is_innovationsfonds_query'] and intent['subject_keywords']:
         print(f"ðŸ” Searching for Innovationsfonds projects in subjects: {intent['subject_keywords']}")
         
-        # 1. HÃ–CHSTE PRIORITÃ„T: Metadaten-basierte Fachsuche
+        # 1. HOECHSTE PRIORITAET: Metadaten-basierte Fachsuche
         for subject in intent['subject_keywords']:
             if subject in SUBJECT_INDEX:
                 print(f"   Found {len(SUBJECT_INDEX[subject])} projects in {subject} via metadata")
@@ -374,9 +373,9 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                         # Nur Innovationsfonds-Projektseiten
                         if 'projektvorstellungen' in chunk['metadata'].get('source', '').lower():
                             if not any(r[1] == chunk for r in results):
-                                results.append((200, chunk))  # HÃ–CHSTE PRIORITÃ„T!
+                                results.append((200, chunk))  # HOECHSTE PRIORITAET!
     
-    # Spezielle Behandlung fÃ¼r allgemeine Innovationsfonds-Anfragen
+    # Spezielle Behandlung fuer allgemeine Innovationsfonds-Anfragen
     elif intent['is_innovationsfonds_query']:
         # Priorisiere Projektvorstellungen-URLs
         for url, indices in URL_INDEX.items():
@@ -386,7 +385,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                         chunk = CHUNKS[idx]
                         # Check if it matches subject keywords
                         if intent['subject_keywords']:
-                            chunk_subjects = [s.lower() for s in chunk['metadata'].get('fÃ¤cher', [])]
+                            chunk_subjects = [s.lower() for s in chunk['metadata'].get('faecher', [])]
                             if any(subj in chunk_subjects for subj in intent['subject_keywords']):
                                 results.append((180, chunk))
                         else:
@@ -419,7 +418,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
         content_lower = chunk['content'].lower()
         score = 0
         
-        # Bonus fÃ¼r Innovationsfonds-Projektseiten
+        # Bonus fuer Innovationsfonds-Projektseiten
         if 'projektvorstellungen' in chunk['metadata'].get('source', '').lower():
             score += 30
         
@@ -431,7 +430,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
                 if phrase in content_lower:
                     score += 25
         
-        # Wort-fÃ¼r-Wort Scoring
+        # Wort-fuer-Wort Scoring
         content_words = set(content_lower.split())
         matching_words = query_words & content_words
         score += len(matching_words) * 5
@@ -468,7 +467,7 @@ def advanced_search(query: str, max_results: int = 10) -> List[Dict]:
     
     for score, chunk in results:
         url = chunk['metadata'].get('source', '')
-        # FÃ¼r Innovationsfonds-Projektseiten: jedes Projekt einzeln
+        # Fuer Innovationsfonds-Projektseiten: jedes Projekt einzeln
         is_project_page = 'projektvorstellungen' in url.lower() and 'uebersicht' in url.lower() and any(char.isdigit() for char in url.split('/')[-1])
         
         if is_project_page:
@@ -541,12 +540,12 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
         for chunk in chunks:
             url = chunk['metadata'].get('source', 'Unbekannt')
             title = chunk['metadata'].get('title', 'Keine Beschreibung')
-            faecher = chunk['metadata'].get('fÃ¤cher', [])
+            faecher = chunk['metadata'].get('faecher', [])
             
             context_parts.append(f"=== Projekt: {title} ===")
             context_parts.append(f"URL: {url}")
             if faecher:
-                context_parts.append(f"FÃ¤cher: {', '.join(faecher)}")
+                context_parts.append(f"Faecher: {', '.join(faecher)}")
             context_parts.append(chunk['content'])
             context_parts.append("---\n")
         
@@ -555,34 +554,34 @@ def create_enhanced_prompt(question: str, chunks: List[Dict], intent: Dict) -> s
     # Intent-spezifische Anweisungen
     intent_instructions = ""
     
-    # Spezielle Anweisungen fÃ¼r Innovationsfonds-Projektanfragen
+    # Spezielle Anweisungen fuer Innovationsfonds-Projektanfragen
     if intent['is_innovationsfonds_query']:
         intent_instructions += """
 ðŸŽ¯ INNOVATIONSFONDS-PROJEKTE - WICHTIGE FORMATIERUNGSREGELN:
 
 1. PROJEKTTITEL UND LINKS:
-   - Zeige JEDES Projekt als separate Ãœberschrift mit klickbarem Link
-   - Format: <strong><a href="VOLLSTÃ„NDIGE-URL" target="_blank">Projekttitel</a></strong>
+   - Zeige JEDES Projekt als separate Ueberschrift mit klickbarem Link
+   - Format: <strong><a href="VOLLSTAENDIGE-URL" target="_blank">Projekttitel</a></strong>
    - Die URL steht nach "URL:" im Kontext
    
 2. PROJEKTBESCHREIBUNG:
-   - Gib eine kurze, prÃ¤gnante Beschreibung (1-2 SÃ¤tze) unter jedem Projekttitel
-   - Verwende <br><br> zwischen Projekten fÃ¼r gute Lesbarkeit
+   - Gib eine kurze, praegnante Beschreibung (1-2 Saetze) unter jedem Projekttitel
+   - Verwende <br><br> zwischen Projekten fuer gute Lesbarkeit
    
-3. BEISPIEL FÃœR PERFEKTE FORMATIERUNG:
+3. BEISPIEL FUER PERFEKTE FORMATIERUNG:
    <strong>Innovationsfonds-Projekte in Chemie:</strong><br><br>
    
-   <strong><a href="https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht/428-digitales-leitprogramm-saeuren-und-basen" target="_blank">Digitales Leitprogramm SÃ¤uren und Basen</a></strong><br>
-   BewÃ¤hrte Leitprogramm-Methode fÃ¼r digitale Medien mit interaktiven Elementen und automatischer RÃ¼ckmeldung fÃ¼r selbstÃ¤ndiges Lernen<br><br>
+   <strong><a href="https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht/428-digitales-leitprogramm-saeuren-und-basen" target="_blank">Digitales Leitprogramm Saeuren und Basen</a></strong><br>
+   Bewaehrte Leitprogramm-Methode fuer digitale Medien mit interaktiven Elementen und automatischer Rueckmeldung fuer selbstaendiges Lernen<br><br>
    
-   <strong><a href="https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht/425-salze-metalle-stoechiometrie" target="_blank">Salze-Metalle-StÃ¶chiometrie</a></strong><br>
-   Interaktives Projekt zum Erlernen von chemischen Grundkonzepten mit praktischen Ãœbungen<br><br>
+   <strong><a href="https://dlh.zh.ch/home/innovationsfonds/projektvorstellungen/uebersicht/425-salze-metalle-stoechiometrie" target="_blank">Salze-Metalle-Stoechiometrie</a></strong><br>
+   Interaktives Projekt zum Erlernen von chemischen Grundkonzepten mit praktischen Uebungen<br><br>
 
 4. WICHTIG:
    - JEDES Projekt MUSS einen klickbaren Link haben
-   - Verwende die VOLLSTÃ„NDIGE URL aus dem Kontext
+   - Verwende die VOLLSTAENDIGE URL aus dem Kontext
    - Liste ALLE gefundenen Projekte auf
-   - FÃ¼ge am Ende KEINE generischen Listen ohne Links hinzu
+   - Fuege am Ende KEINE generischen Listen ohne Links hinzu
 """
     
     if intent['is_date_query']:
@@ -597,11 +596,11 @@ TERMINE UND VERANSTALTUNGEN:
     
     if intent['wants_list']:
         intent_instructions += """
-LISTEN UND ÃœBERSICHTEN:
-- VollstÃ¤ndige, strukturierte Listen
-- <strong>Ãœberschriften</strong> fÃ¼r Kategorien
-- <br>â€¢ fÃ¼r Hauptpunkte
-- <br>&nbsp;&nbsp;â†’ fÃ¼r Unterpunkte
+LISTEN UND UEBERSICHTEN:
+- Vollstaendige, strukturierte Listen
+- <strong>Ueberschriften</strong> fuer Kategorien
+- <br>â€¢ fuer Hauptpunkte
+- <br>&nbsp;&nbsp;â†’ fuer Unterpunkte
 - ALLE gefundenen Elemente zeigen
 """
     
@@ -614,24 +613,24 @@ KONTAKT UND ANMELDUNG:
 - Telefon: <strong>Tel: +41 XX XXX XX XX</strong>
 """
     
-    prompt = f"""Du bist der offizielle KI-Assistent des Digital Learning Hub (DLH) ZÃ¼rich.
-Beantworte die folgende Frage prÃ¤zise und vollstÃ¤ndig basierend auf den bereitgestellten Informationen.
+    prompt = f"""Du bist der offizielle KI-Assistent des Digital Learning Hub (DLH) Zuerich.
+Beantworte die folgende Frage praezise und vollstaendig basierend auf den bereitgestellten Informationen.
 
 WICHTIGE REGELN:
 1. Verwende NUR Informationen aus dem bereitgestellten Kontext
-2. Sei spezifisch und vollstÃ¤ndig - liste ALLE relevanten Informationen auf
+2. Sei spezifisch und vollstaendig - liste ALLE relevanten Informationen auf
 3. Wenn etwas nicht im Kontext steht, sage das klar
 4. Bei Innovationsfonds-Projekten: JEDES Projekt muss einen klickbaren Link haben!
-5. Verweise bei Bedarf auf die DLH-Website fÃ¼r weitere Informationen
+5. Verweise bei Bedarf auf die DLH-Website fuer weitere Informationen
 
-FORMATIERUNG (SEHR WICHTIG fÃ¼r HTML-Darstellung):
+FORMATIERUNG (SEHR WICHTIG fuer HTML-Darstellung):
 - Verwende KEINE Markdown-Zeichen (*, #, _, -)
-- Verwende <br><br> fÃ¼r AbsÃ¤tze zwischen Abschnitten
-- Verwende <br> fÃ¼r ZeilenumbrÃ¼che innerhalb von Listen
-- Verwende <strong>Text</strong> fÃ¼r Ãœberschriften und wichtige Begriffe
-- Verwende <em>Text</em> fÃ¼r Hervorhebungen
-- Strukturiere Listen mit <br>â€¢ fÃ¼r Hauptpunkte
-- Verwende <br>&nbsp;&nbsp;â†’ fÃ¼r Unterpunkte
+- Verwende <br><br> fuer Absaetze zwischen Abschnitten
+- Verwende <br> fuer Zeilenumbrueche innerhalb von Listen
+- Verwende <strong>Text</strong> fuer Ueberschriften und wichtige Begriffe
+- Verwende <em>Text</em> fuer Hervorhebungen
+- Strukturiere Listen mit <br>â€¢ fuer Hauptpunkte
+- Verwende <br>&nbsp;&nbsp;â†’ fuer Unterpunkte
 - Mache URLs klickbar: <a href="URL" target="_blank">Linktext</a>
 - E-Mails: <a href="mailto:email@domain.ch">email@domain.ch</a>
 
@@ -642,7 +641,7 @@ KONTEXT AUS DER DLH-WEBSITE:
 
 FRAGE: {question}
 
-Erstelle eine hilfreiche, gut strukturierte und vollstÃ¤ndige Antwort mit perfekter HTML-Formatierung:"""
+Erstelle eine hilfreiche, gut strukturierte und vollstaendige Antwort mit perfekter HTML-Formatierung:"""
     
     return prompt
 
@@ -689,16 +688,16 @@ async def ask_question(request: QuestionRequest):
         print(f"\nðŸ” Query: {request.question}")
         print(f"   Intent: innovationsfonds={intent['is_innovationsfonds_query']}, subjects={intent['subject_keywords']}")
         
-        # FÃ¼hre erweiterte Suche durch
+        # Fuehre erweiterte Suche durch
         relevant_chunks = advanced_search(
             request.question, 
-            max_results=request.max_sources + 5  # Mehr Ergebnisse fÃ¼r Innovationsfonds
+            max_results=request.max_sources + 5  # Mehr Ergebnisse fuer Innovationsfonds
         )
         
         if not relevant_chunks:
             # Keine relevanten Chunks gefunden
             answer = f"<strong>Entschuldigung, ich konnte keine relevanten Informationen zu '{request.question}' finden.</strong><br><br>"
-            answer += "Bitte versuchen Sie eine andere Formulierung oder besuchen Sie <a href='https://dlh.zh.ch' target='_blank'>dlh.zh.ch</a> fÃ¼r weitere Informationen."
+            answer += "Bitte versuchen Sie eine andere Formulierung oder besuchen Sie <a href='https://dlh.zh.ch' target='_blank'>dlh.zh.ch</a> fuer weitere Informationen."
             
             return AnswerResponse(
                 question=request.question,
@@ -793,25 +792,20 @@ async def ask_question(request: QuestionRequest):
         else:
             raise HTTPException(status_code=500, detail=str(e))
 
-# Serve static files
-try:
-    app.mount("/static", StaticFiles(directory="frontend"), name="static")
-except Exception as e:
-    print(f"Warning: Could not mount static files: {e}")
-
 if __name__ == "__main__":
-    print("\nðŸš€ Starting DLH Chatbot API server (FINAL OPTIMIZED VERSION)...")
-    print("ðŸ“– API documentation: http://localhost:8000/docs")
-    print("ðŸŒ Chat interface: http://localhost:8000/static/index.html")
-    print(f"ðŸ“š Loaded {len(CHUNKS)} chunks")
-    print(f"ðŸ” Indexed {len(KEYWORD_INDEX)} keywords")
-    print(f"ðŸ“š Indexed {len(SUBJECT_INDEX)} subjects in metadata")
+    print("\nStarting DLH Chatbot API server (FINAL OPTIMIZED VERSION)...")
+    print("API documentation: http://localhost:8000/docs")
+    print(f"Loaded {len(CHUNKS)} chunks")
+    print(f"Indexed {len(KEYWORD_INDEX)} keywords")
+    print(f"Indexed {len(SUBJECT_INDEX)} subjects in metadata")
     if SUBJECT_INDEX:
         print(f"   Subjects: {', '.join(SUBJECT_INDEX.keys())}")
-    print("âœ¨ Features:")
-    print("   - Metadata subject search (fÃ¤cher field)")
+    print("Features:")
+    print("   - Metadata subject search (faecher field)")
     print("   - Enhanced date extraction")
     print("   - Guaranteed project links")
-    print("\nâœ… All features enabled!\n")
+    print("   - Claude Sonnet 4.5")
+    print("   - Chronological event sorting")
+    print("\nAll features enabled!\n")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)

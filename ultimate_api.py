@@ -422,6 +422,13 @@ def health():
 @app.get("/version")
 def version():
     return {"version": "openai-backend", "model": OPENAI_MODEL}
+@app.get("/")
+def root():
+    return {
+        "ok": True,
+        "service": "DLH OpenAI API",
+        "endpoints": ["/health", "/ask", "/version"]
+
 
 @app.post("/ask", response_model=AnswerResponse)
 def ask(req: QuestionRequest):
